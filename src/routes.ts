@@ -180,21 +180,11 @@ export function signPayload(body: Record<string, unknown>, secret: string): { si
   return { signature: `sha256=${hmac}`, timestamp };
 }
 
-// Agent ID -> OpenClaw agent session key mapping
+// Agent ID -> OpenClaw agent session key mapping (ichabod deployment)
 const AGENT_SESSION_MAP: Record<string, string> = {
-  "jarvx": "agent:main:main",
-  "eff": "agent:eff:main",
-  "agency": "agent:agency:main",
-  "auteur-augmente": "agent:auteur-augmente:main",
-  "content-creator": "agent:content:main",
-  "sales-agent": "agent:sales:main",
-  "research-agent": "agent:research:main",
-  "coding-agent": "agent:coding:main",
-  "support": "agent:support:main",
-  "onboarding": "agent:onboarding:main",
-  "community": "agent:community:main",
-  "ops": "agent:ops:main",
-  "infra-agent": "agent:infra:main",
+  "main": "agent:main:main",
+  "job-agent": "agent:job-agent:main",
+  "mc-gateway": "agent:mc-gateway-2653e2c6-3d75-49d7-b3a0-292d64c87682:main",
 };
 
 // Map board assignee names to gateway agent IDs
