@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,17 +13,66 @@
       <div class="tabs" id="viewTabs">
         <button class="tab active" data-view="board">Board</button>
         <button class="tab" data-view="agents">Agents</button>
+        <button class="tab" data-view="ready-for-approval">Ready for Approval</button>
         <button class="tab" data-view="stats">Stats</button>
       </div>
-      <button class="theme-toggle" id="themeToggle" title="Toggle dark mode">&#9790;</button>
+      <button class="help-btn" id="helpBtn" title="Help">?</button>
+      <button class="theme-toggle" id="themeToggle" title="Toggle light mode">&#9790;</button>
     </div>
   </header>
 
   <div class="project-bar" id="projectBar">
     <select id="projectSelect"><option value="">Loading...</option></select>
     <select id="agentFilter"><option value="">All Agents</option></select>
-    <button id="newProjectBtn">+ Project</button>
     <button id="newTaskBtn">+ Task</button>
+  </div>
+
+  <!-- Onboarding panel (shown when board has no tasks) -->
+  <div class="onboarding-panel" id="onboardingPanel">
+    <div class="onboarding-content">
+      <div class="onboarding-icon">
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+          <rect x="4" y="8" width="40" height="32" rx="6" stroke="#00E5FF" stroke-width="2" fill="rgba(0,229,255,0.08)"/>
+          <circle cx="16" cy="22" r="3" fill="#00E5FF"/>
+          <circle cx="24" cy="22" r="3" fill="#00E5FF"/>
+          <circle cx="32" cy="22" r="3" fill="#00E5FF"/>
+          <circle cx="16" cy="30" r="3" fill="#00E5FF"/>
+          <circle cx="24" cy="30" r="3" fill="#00E5FF"/>
+          <circle cx="32" cy="30" r="3" fill="#00E5FF"/>
+        </svg>
+      </div>
+      <h2>Welcome to Agent Board</h2>
+      <p>This is your kanban board for managing AI agent tasks. Create tasks, assign them to agents, track progress from idea to completion.</p>
+      <div class="onboarding-columns">
+        <div class="onboarding-col"><span class="dot" style="background:var(--col-backlog)"></span><span><strong>Backlog</strong> — ideas and incoming tasks</span></div>
+        <div class="onboarding-col"><span class="dot" style="background:var(--col-todo)"></span><span><strong>To Do</strong> — ready to work on</span></div>
+        <div class="onboarding-col"><span class="dot" style="background:var(--col-doing)"></span><span><strong>Doing</strong> — in progress</span></div>
+        <div class="onboarding-col"><span class="dot" style="background:var(--col-review)"></span><span><strong>Review</strong> — needs review</span></div>
+        <div class="onboarding-col"><span class="dot" style="background:var(--col-done)"></span><span><strong>Done</strong> — complete</span></div>
+        <div class="onboarding-col"><span class="dot" style="background:var(--col-failed)"></span><span><strong>Failed</strong> — errors</span></div>
+      </div>
+      <button class="onboarding-btn" id="onboardingCreateBtn">+ Create Your First Task</button>
+    </div>
+  </div>
+
+  <!-- Help panel -->
+  <div class="help-overlay" id="helpOverlay">
+    <div class="help-panel">
+      <button class="help-close" id="helpClose">&times;</button>
+      <h2>About Agent Board</h2>
+      <p>Agent Board is a kanban board for managing AI agent tasks. Agents can create, update, and move tasks through a pipeline.</p>
+      <div class="help-section">
+        <h3>How it works</h3>
+        <ul>
+          <li><strong>Create tasks</strong> — Click "+ Task" in the toolbar or "+ Add task" in any column</li>
+          <li><strong>Move cards</strong> — Drag and drop tasks between columns to change their status</li>
+          <li><strong>View details</strong> — Click any card to open the detail panel with comments and threads</li>
+          <li><strong>Filter by agent</strong> — Use the agent dropdown to see tasks assigned to a specific agent</li>
+          <li><strong>Manage agents</strong> — Switch to the Agents tab to see all registered agents</li>
+          <li><strong>Track progress</strong> — Switch to the Stats tab for completion metrics and agent performance</li>
+        </ul>
+      </div>
+    </div>
   </div>
 
   <!-- Kanban view -->
@@ -34,6 +83,9 @@
 
   <!-- Stats view -->
   <div class="stats-view hidden" id="statsView"></div>
+
+  <!-- Ready for Approval view -->
+  <div class="ready-for-approval-view hidden" id="readyForApprovalView"></div>
 
   <!-- Task detail panel -->
   <div class="detail-panel" id="detailPanel">

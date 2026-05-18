@@ -1,8 +1,8 @@
-// Agent Board - Dashboard App
+// Agent Board - Dashboard App (rewritten)
 (function () {
   const API = "/api";
-  const COLUMNS = ["backlog", "todo", "doing", "review", "done", "failed"];
-  const COL_LABELS = { backlog: "Backlog", todo: "To Do", doing: "Doing", review: "Review", done: "Done", failed: "Failed" };
+  const COLUMNS = ["backlog", "todo", "doing", "review", "ready-for-approval", "done", "failed"];
+  const COL_LABELS = { backlog: "Backlog", todo: "To Do", doing: "Doing", review: "Review", "ready-for-approval": "Ready for Approval", done: "Done", failed: "Failed" };
 
   let state = {
     projects: [],
@@ -13,15 +13,22 @@
     filterAgent: null,
   };
 
-  // --- Theme ---
+  // --- Theme (dark default) ---
   const themeToggle = document.getElementById("themeToggle");
+
   function initTheme() {
+    // Always default to dark
+    document.documentElement.setAttribute("data-theme", "dark");
+    themeToggle.textContent = "\u2600";
+
+    // Check if user previously switched to light
     const saved = localStorage.getItem("ab-theme");
-    if (saved === "dark" || (!saved && matchMedia("(prefers-color-scheme: dark)").matches)) {
-      document.documentElement.setAttribute("data-theme", "dark");
-      themeToggle.textContent = "\u2600";
+    if (saved === "light") {
+      document.documentElement.setAttribute("data-theme", "light");
+      themeToggle.textContent = "\u263E";
     }
   }
+
   themeToggle.addEventListener("click", () => {
     const isDark = document.documentElement.getAttribute("data-theme") === "dark";
     document.documentElement.setAttribute("data-theme", isDark ? "light" : "dark");
@@ -39,11 +46,38 @@
     return res.json();
   }
 
+  // --- Onboarding ---
+  const onboardingPanel = document.getElementById("onboardingPanel");
+
+  function showOnboarding() {
+    if (state.tasks.length === 0) {
+      onboardingPanel.classList.remove("hidden");
+    } else {
+      onboardingPanel.classList.add("hidden");
+    }
+  }
+
+  function hideOnboarding() {
+    onboardingPanel.classList.add("hidden");
+  }
+
   // --- Data loading ---
   async function loadProjects() {
     state.projects = await api("/projects");
+    // Auto-create "Main" project if none exist
+    if (!state.projects.length) {
+      const main = await api("/projects", {
+        method: "POST",
+        body: JSON.stringify({
+          name: "Main",
+          owner: "agent-board",
+          description: "Default project for agent tasks",
+        }),
+      });
+      state.projects = [main];
+    }
     renderProjectSelect();
-    if (state.projects.length && !state.currentProject) {
+    if (!state.currentProject) {
       state.currentProject = state.projects[0].id;
     }
   }
@@ -66,10 +100,6 @@
   // --- Project selector ---
   const projectSelect = document.getElementById("projectSelect");
   function renderProjectSelect() {
-    if (!state.projects.length) {
-      projectSelect.innerHTML = '<option value="">No projects</option>';
-      return;
-    }
     projectSelect.innerHTML = state.projects
       .map((p) => `<option value="${p.id}" ${p.id === state.currentProject ? "selected" : ""}>${p.name}</option>`)
       .join("");
@@ -81,13 +111,15 @@
     render();
   });
 
-  // --- Agent filter ---
+  // --- Agent filter (from /api/agents) ---
   const agentFilter = document.getElementById("agentFilter");
   function renderAgentFilter() {
-    // Get unique agents from tasks
-    const agents = [...new Set(state.tasks.map(t => t.assignee).filter(Boolean))].sort();
-    agentFilter.innerHTML = '<option value="">All Agents</option>' + 
-      agents.map(a => `<option value="${a}" ${a === state.filterAgent ? "selected" : ""}>${a}</option>`).join("");
+    const agents = state.agents || [];
+    agentFilter.innerHTML = '<option value="">All Agents</option>' +
+      agents
+        .filter(a => a.id)
+        .map(a => `<option value="${a.id}" ${a.id === state.filterAgent ? "selected" : ""}>${a.name || a.id}</option>`)
+        .join("");
   }
 
   agentFilter.addEventListener("change", () => {
@@ -104,6 +136,23 @@
     render();
   });
 
+  // --- Help panel ---
+  const helpOverlay = document.getElementById("helpOverlay");
+  document.getElementById("helpBtn").addEventListener("click", () => {
+    helpOverlay.classList.add("open");
+  });
+  document.getElementById("helpClose").addEventListener("click", () => {
+    helpOverlay.classList.remove("open");
+  });
+  helpOverlay.addEventListener("click", (e) => {
+    if (e.target === helpOverlay) helpOverlay.classList.remove("open");
+  });
+
+  // --- Onboarding create button ---
+  document.getElementById("onboardingCreateBtn").addEventListener("click", () => {
+    showTaskModal("backlog");
+  });
+
   // --- Render ---
   function render() {
     const boardView = document.getElementById("boardView");
@@ -113,10 +162,12 @@
     boardView.classList.add("hidden");
     agentsView.classList.add("hidden");
     statsView.classList.add("hidden");
+    hideOnboarding();
 
     if (state.currentView === "board") {
       boardView.classList.remove("hidden");
       renderAgentFilter();
+      showOnboarding();
       renderBoard();
     } else if (state.currentView === "agents") {
       agentsView.classList.remove("hidden");
@@ -124,6 +175,10 @@
     } else if (state.currentView === "stats") {
       statsView.classList.remove("hidden");
       renderStats();
+    } else if (state.currentView === "ready-for-approval") {
+      const readyForApprovalView = document.getElementById("readyForApprovalView");
+      readyForApprovalView.classList.remove("hidden");
+      renderReadyForApproval();
     }
   }
 
@@ -137,8 +192,20 @@
 
   async function renderStats() {
     const view = document.getElementById("statsView");
-    view.innerHTML = '<div style="padding:24px;color:var(--text-muted)">Loading stats...</div>';
+
     const stats = await api("/stats");
+
+    // Empty state
+    if (!stats.totalTasks) {
+      view.innerHTML = `
+        <div class="stats-empty">
+          <div class="stats-empty-icon">📊</div>
+          <h3>No tasks yet</h3>
+          <p>Your stats will appear here once tasks are created and completed. Head over to the Board to create your first task.</p>
+        </div>
+      `;
+      return;
+    }
 
     const statusBars = Object.entries(stats.byStatus || {}).map(([s, c]) =>
       `<div class="stat-bar"><span class="stat-label">${s}</span><div class="stat-fill" style="width:${Math.max(5, (c / Math.max(stats.totalTasks, 1)) * 100)}%;background:var(--col-${s},#666)"></div><span class="stat-val">${c}</span></div>`
@@ -282,11 +349,23 @@
     }
     view.innerHTML = state.agents.map((a) => {
       const taskCount = state.tasks.filter((t) => t.assignee === a.id).length;
+      const isOnline = a.status === "online";
+      const displayRole = a.role || "worker";
       return `
         <div class="agent-card">
-          <h3>${esc(a.name)}</h3>
-          <div class="role">${esc(a.role)} &middot; ${a.status} &middot; ${taskCount} task${taskCount !== 1 ? "s" : ""}</div>
-          <div class="caps">${a.capabilities.map((c) => `<span class="badge badge-tag">${esc(c)}</span>`).join("")}</div>
+          <div class="agent-card-header">
+            <div class="agent-status-dot ${isOnline ? "online" : "offline"}"></div>
+            <span class="agent-card-name">${esc(a.name || a.id)}</span>
+          </div>
+          <div class="agent-card-role">${esc(displayRole)}</div>
+          <div class="agent-card-stats">
+            <span class="agent-card-stat"><strong>${taskCount}</strong> task${taskCount !== 1 ? "s" : ""}</span>
+            <span class="agent-card-stat"><strong>${isOnline ? "Online" : "Offline"}</strong></span>
+          </div>
+          <div class="agent-card-caps">
+            ${(a.capabilities || []).map((c) => `<span class="badge">${esc(c)}</span>`).join("")}
+            ${(!a.capabilities || !a.capabilities.length) ? '<span class="badge" style="opacity:0.4">no capabilities</span>' : ""}
+          </div>
         </div>`;
     }).join("");
   }
@@ -374,7 +453,7 @@
 
     detailContent.innerHTML = `
       <h2>${esc(task.title)}</h2>
-      <div class="detail-field"><label>Status</label><div class="value"><span class="badge" style="background:var(--col-${task.column});color:#fff">${task.column}</span></div></div>
+      <div class="detail-field"><label>Status</label><div class="value"><span class="badge" style="background:var(--col-${task.column});color:#000">${task.column}</span></div></div>
       <div class="detail-field"><label>Assignee</label><div class="value">${esc(task.assignee || "Unassigned")}</div></div>
       <div class="detail-field"><label>Priority</label><div class="value"><span class="badge badge-priority-${task.priority}">${task.priority}</span></div></div>
       <div class="detail-field"><label>Description</label><div class="value">${esc(task.description || "No description")}</div></div>
@@ -422,6 +501,39 @@
     detailPanel.classList.add("open");
   }
 
+  async function renderReadyForApproval() {
+    const view = document.getElementById("readyForApprovalView");
+    view.innerHTML = `<h2>Plans Ready for Approval</h2><div id="readyForApprovalList" class="task-list"></div>`;
+    const listEl = document.getElementById("readyForApprovalList");
+
+    try {
+      const plans = await fetch("http://100.122.158.123:8088/api/plans/ready-for-approval").then(res => res.json());
+
+      if (!plans || plans.length === 0) {
+        listEl.innerHTML = `<div class="empty-state">No plans currently ready for approval.</div>`;
+        return;
+      }
+
+      listEl.innerHTML = plans.map(plan => `
+        <div class="card">
+          <div class="card-title">${esc(plan.title)}</div>
+          <div class="card-desc">${esc(plan.review_reason || "No review reason provided.")}</div>
+          <button class="btn btn-sm" onclick="openHermesKanbanTask('${plan.task_id}')">View Task</button>
+        </div>
+      `).join('');
+    } catch (error) {
+      listEl.innerHTML = `<div class="error-state">Error loading plans: ${esc(error.message)}</div>`;
+      console.error("Error loading ready for approval plans:", error);
+    }
+  }
+
+  function openHermesKanbanTask(taskId) {
+    // This function will open the Hermes Kanban task in a new tab/window.
+    // The Hermes Kanban API server is running at http://100.122.158.123:8088
+    // The task view URL is not directly provided in the prompt, so we'll assume a sensible default.
+    window.open(`http://100.122.158.123:8088/tasks/${taskId}`, '_blank');
+  }
+
   // --- Modals ---
   function showModal(html) {
     const overlay = document.createElement("div");
@@ -434,40 +546,14 @@
     return overlay;
   }
 
-  document.getElementById("newProjectBtn").addEventListener("click", () => {
-    const overlay = showModal(`
-      <h2>New Project</h2>
-      <label>Name</label>
-      <input type="text" id="modalProjName" autofocus>
-      <label>Owner</label>
-      <input type="text" id="modalProjOwner" placeholder="e.g. agency">
-      <label>Description</label>
-      <textarea id="modalProjDesc"></textarea>
-      <div class="modal-actions">
-        <button class="btn" id="modalCancel">Cancel</button>
-        <button class="btn btn-primary" id="modalConfirm">Create</button>
-      </div>
-    `);
-    overlay.querySelector("#modalCancel").addEventListener("click", () => overlay.remove());
-    overlay.querySelector("#modalConfirm").addEventListener("click", async () => {
-      const name = overlay.querySelector("#modalProjName").value.trim();
-      if (!name) return;
-      const project = await api("/projects", {
-        method: "POST",
-        body: JSON.stringify({
-          name,
-          owner: overlay.querySelector("#modalProjOwner").value.trim() || "unknown",
-          description: overlay.querySelector("#modalProjDesc").value.trim(),
-        }),
-      });
-      state.currentProject = project.id;
-      overlay.remove();
-      await refresh();
-    });
-  });
-
   function showTaskModal(column) {
     if (!state.currentProject) return;
+
+    // Get agents for assignee suggestions
+    const agentOptions = state.agents.length
+      ? state.agents.map(a => `<option value="${a.id}">${a.name || a.id}</option>`).join("")
+      : "";
+
     const overlay = showModal(`
       <h2>New Task</h2>
       <label>Title</label>
@@ -475,7 +561,8 @@
       <label>Description</label>
       <textarea id="modalTaskDesc"></textarea>
       <label>Assignee</label>
-      <input type="text" id="modalTaskAssignee">
+      <input type="text" id="modalTaskAssignee" list="agentList" placeholder="Type or select an agent">
+      <datalist id="agentList">${agentOptions}</datalist>
       <label>Priority</label>
       <select id="modalTaskPriority">
         <option value="medium" selected>Medium</option>
@@ -529,6 +616,9 @@
   // Auto-refresh every 5s
   setInterval(async () => {
     await loadTasks();
-    if (state.currentView === "board") renderBoard();
+    if (state.currentView === "board") {
+      renderBoard();
+      showOnboarding();
+    }
   }, 5000);
 })();
