@@ -53,7 +53,7 @@ Works standalone or as the orchestration layer for an [OpenClaw](https://github.
 | **Client View** | Read-only project dashboard for external stakeholders. Enable per-project with `clientViewEnabled`. Hides agent names and internal details. |
 | **Project Templates** | Pre-define task sets as JSON templates. Apply them to any project in one call. |
 | **Board Stats** | Per-agent and global statistics: completion rates, average duration, stuck task detection. |
-| **MCP Server** | Full [Model Context Protocol](https://modelcontextprotocol.io/) server — AI agents manage tasks through 12 MCP tools. Compatible with Claude Desktop, Claude Code, and any MCP client. |
+| **MCP Server** | Full [Model Context Protocol](https://modelcontextprotocol.io/) server — AI agents manage tasks through 14 MCP tools. Compatible with Claude Desktop, Claude Code, and any MCP client. |
 | **API Key Auth** | Optional per-agent API key authentication. Backward-compatible (no keys = no auth). |
 | **Zod Validation** | All inputs validated with Zod schemas. Clear error messages on invalid requests. |
 | **Concurrent Safety** | Per-file async mutex locking on all writes. Atomic temp-file-then-rename. No corruption under concurrent access. |
@@ -90,7 +90,7 @@ node dist/index.js --port 8080 --data ./my-data
 | `OPENCLAW_HOOK_URL` | OpenClaw webhook URL for agent notifications (default: `http://localhost:18789/hooks/agent`) |
 | `OPENCLAW_HOOK_TOKEN` | Bearer token for OpenClaw webhook calls. Notifications disabled if not set. |
 | `AGENTBOARD_WEBHOOK_SECRET` | Secret for HMAC-SHA256 webhook signing. When set, all outbound webhooks include `X-AgentBoard-Signature` headers. |
-| `TEMPLATES_DIR` | Custom templates directory (default: `./templates`) |
+| `TEMPLATES_DIR` | Custom templates directory (default: `./data/templates`) |
 
 ## Real-Time Agent Communication
 
@@ -120,7 +120,7 @@ X-AgentBoard-Timestamp: 1770307200000
 X-AgentBoard-Source: agentboard
 ```
 
-Set `AGENTBOARD_WEBHOOK_SECRET` to enable signing. Receiving agents verify with the included `shared/verify-webhook.sh` utility.
+Set `AGENTBOARD_WEBHOOK_SECRET` to enable signing. Receiving agents verify using the shared secret.
 
 ### Event Types
 Webhooks fire on all significant events:
@@ -353,7 +353,7 @@ node dist/mcp-server.js --data ./data      # custom data dir
 }
 ```
 
-### MCP Tools (12)
+### MCP Tools (14)
 
 | Tool | Description |
 |------|-------------|
@@ -387,15 +387,13 @@ agent-board/
 │   ├── audit.ts          # Append-only JSONL audit log
 │   ├── types.ts          # TypeScript interfaces
 │   ├── utils.ts          # ID generation, timestamp helpers
-│   └── mcp-server.ts     # MCP stdio server (12 tools)
+│   └── mcp-server.ts     # MCP stdio server (14 tools)
 ├── dashboard/
 │   ├── index.html        # Kanban dashboard (drag-and-drop)
 │   ├── client.html       # Read-only client view
 │   ├── app.js            # Dashboard logic
 │   └── style.css         # Dark/light theme
-├── templates/            # Reusable task templates (JSON)
-├── shared/               # Webhook verification utility
-├── tests/                # 107 tests (Vitest)
+├── src/features.test.ts  # Test suite (Vitest)
 └── data/                 # Runtime data (auto-created, gitignored)
 ```
 
@@ -461,7 +459,7 @@ CMD ["node", "dist/index.js"]
 npm install              # Install dependencies
 npm run build            # Compile TypeScript
 npm run dev              # TypeScript watch mode
-npm test                 # Run all 92 tests (Vitest)
+npm test                 # Run test suite (Vitest)
 ```
 
 ### Tech Stack
@@ -470,7 +468,7 @@ npm test                 # Run all 92 tests (Vitest)
 - **Language:** TypeScript
 - **Validation:** Zod
 - **MCP:** @modelcontextprotocol/sdk
-- **Tests:** Vitest + Supertest (107 tests)
+- **Tests:** Vitest
 - **Dashboard:** Vanilla HTML/CSS/JS (no build step)
 - **Storage:** JSON files (no database required)
 
