@@ -62,3 +62,7 @@ npm test        # run Vitest test suite
 - `audit.jsonl` grows indefinitely — prune manually if the board has been running long-term
 - MCP server (`npm run mcp`) and HTTP server (`npm start`) are separate processes — run both if agents need dashboard visibility too
 - Always `npm run build` before `npm start` — runs from compiled `dist/`, not source
+
+
+## Hardening Rules
+- **Closeout Sync (inviolable):** Always write a per-session closeout entry to `~/brain/memory/ichabod/_close-log.md` and append a matching structured JSON line to `~/brain/memory/ichabod/_close-log.jsonl` using the closeout schema. Ensure you include the correct `linear.issue_key` so the watcher syncs it to the Linear board.
