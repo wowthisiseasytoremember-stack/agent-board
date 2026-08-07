@@ -1,3 +1,42 @@
+---
+schema: agents-md/v1
+
+project: agent-board
+initiative: agent-infra
+family: hermes
+
+what: >-
+  A task board that AI agents can drive themselves. Tasks live in JSON files
+  with mutex-locked writes and automatic backups, and are reachable three ways:
+  a Kanban web dashboard for humans, a REST API, and an MCP server exposing the
+  board as tools. Supports DAG dependencies between tasks, auto-retry, and an
+  append-only audit trail.
+
+stack: [typescript, node, mcp, zod, vitest]
+
+entrypoints:
+  - src/index.ts
+  - src/mcp-server.ts
+
+modules:
+  - name: REST API
+    path: src/routes.ts
+    does: HTTP endpoints for creating, claiming, and moving tasks.
+  - name: MCP server
+    path: src/mcp-server.ts
+    does: Exposes the board to agents as MCP tools.
+  - name: Store
+    path: src/store.ts
+    does: JSON file persistence with per-file locking and backups.
+  - name: Audit trail
+    path: src/audit.ts
+    does: Records every state transition.
+  - name: Kanban dashboard
+    path: dashboard
+    does: Browser UI for watching and moving agent tasks.
+
+updated: 2026-08-07 05:45 UTC
+---
 > ⚠️ STOP. Before reading further:
 > 1. Use the Brain MCP tool to read: claude-portable/ORIENTATION.md
 > 2. Familiarize yourself with the full system — who Justin is, what's running, core rules, key paths.
