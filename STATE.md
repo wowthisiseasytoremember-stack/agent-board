@@ -1,11 +1,9 @@
 ---
 title: STATE
-state: 
-phase: 
-blocker: 
-last_active: 2026-05-26
+state: active
+last_active: 2026-08-13
 ---
-
 # agent-board — Project State
 
-**Last active:** 2026-05-26
+This file has been consolidated into [`TODO.md`](./TODO.md).
+See [`TODO.md`](./TODO.md) for active plans, state, and task tracking.
